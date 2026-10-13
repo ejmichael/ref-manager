@@ -1,0 +1,1310 @@
+<title>Refs Manager</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+/*
+  Layout: sidebar folders + main grid, collapses to tabs on mobile
+  Color: dark-first, muted slate with vivid orange accent (RunPod/AI tool feel)
+  Type: Inter for UI, JetBrains Mono for code/scripts
+*/
+:root {
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface2: #f0f2f5;
+  --border: #e2e6ec;
+  --text: #1a1d23;
+  --text2: #5a6278;
+  --text3: #8b92a5;
+  --accent: #e85d04;
+  --accent-bg: #fff3ed;
+  --accent-hover: #c94d00;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --sidebar-w: 220px;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1117;
+    --surface: #1a1d26;
+    --surface2: #242834;
+    --border: #2e3344;
+    --text: #e8eaf0;
+    --text2: #9aa0b8;
+    --text3: #5c6480;
+    --accent: #ff7229;
+    --accent-bg: #2a1800;
+    --accent-hover: #ff8c4d;
+    --shadow: 0 1px 3px rgba(0,0,0,0.4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1117;
+  --surface: #1a1d26;
+  --surface2: #242834;
+  --border: #2e3344;
+  --text: #e8eaf0;
+  --text2: #9aa0b8;
+  --text3: #5c6480;
+  --accent: #ff7229;
+  --accent-bg: #2a1800;
+  --accent-hover: #ff8c4d;
+  --shadow: 0 1px 3px rgba(0,0,0,0.4);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100%;
+}
+
+/* ── App shell ── */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100svh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 100;
+  flex-shrink: 0;
+}
+.topbar-logo {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.topbar-logo .dot {
+  width: 8px; height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+.topbar-spacer { flex: 1; }
+.topbar-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.topbar-btn:hover { border-color: var(--accent); color: var(--accent); }
+.topbar-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 500;
+}
+.topbar-btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+
+/* ── Main layout ── */
+.main-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+.sidebar-head {
+  padding: 12px 14px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+.folder-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+  border-radius: 0;
+  color: var(--text2);
+  font-size: 13px;
+  transition: background 0.1s, color 0.1s;
+  position: relative;
+}
+.folder-item:hover { background: var(--surface2); color: var(--text); }
+.folder-item.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 500;
+}
+.folder-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 4px; bottom: 4px;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 0 3px 3px 0;
+}
+.folder-icon { font-size: 15px; flex-shrink: 0; }
+.folder-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+}
+.folder-del {
+  margin-left: 2px;
+  opacity: 0;
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+  border-radius: 3px;
+}
+.folder-item:hover .folder-del { opacity: 1; }
+.folder-del:hover { background: var(--surface2); }
+
+.new-folder-form {
+  padding: 8px 14px;
+  display: flex;
+  gap: 6px;
+}
+.new-folder-form input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  outline: none;
+}
+.new-folder-form input:focus { border-color: var(--accent); }
+.new-folder-form button {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.new-folder-form button:hover { background: var(--accent-hover); }
+
+/* ── Content area ── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 16px;
+  min-width: 0;
+}
+.content-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.content-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 0;
+  flex: 1;
+}
+.file-count {
+  font-size: 12px;
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+}
+.view-toggle {
+  display: flex;
+  background: var(--surface2);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+.view-toggle button {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: background 0.1s, color 0.1s;
+}
+.view-toggle button.active { background: var(--surface); color: var(--text); }
+
+/* ── Drop zone ── */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 28px 20px;
+  text-align: center;
+  color: var(--text3);
+  margin-bottom: 20px;
+  transition: border-color 0.2s, background 0.2s;
+  cursor: pointer;
+}
+.drop-zone.drag-over {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.drop-zone p { margin-top: 6px; font-size: 13px; }
+.drop-zone .drop-icon { font-size: 28px; }
+.drop-zone label {
+  display: inline-block;
+  margin-top: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 500;
+  padding: 7px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+}
+.drop-zone label:hover { background: var(--accent-hover); }
+#file-input { display: none; }
+
+/* ── Grid ── */
+.file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.file-list { display: flex; flex-direction: column; gap: 4px; }
+
+.file-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+  position: relative;
+}
+.file-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.file-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+
+.file-thumb {
+  aspect-ratio: 1;
+  background: var(--surface2);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.file-thumb img, .file-thumb video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.file-thumb .file-icon { font-size: 32px; }
+
+.file-info {
+  padding: 7px 8px;
+}
+.file-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-meta {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 1px;
+}
+
+.file-actions {
+  position: absolute;
+  top: 6px; right: 6px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.file-card:hover .file-actions { opacity: 1; }
+.file-act-btn {
+  background: rgba(0,0,0,0.55);
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  width: 26px; height: 26px;
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.file-act-btn:hover { background: var(--accent); }
+.file-act-btn.del:hover { background: var(--danger); }
+
+/* List row */
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.file-row:hover { border-color: var(--accent); }
+.file-row.selected { border-color: var(--accent); }
+.file-row-thumb {
+  width: 40px; height: 40px;
+  border-radius: 5px;
+  background: var(--surface2);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.file-row-thumb img, .file-row-thumb video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.file-row-info { flex: 1; min-width: 0; }
+.file-row-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-row-meta { font-size: 11px; color: var(--text3); }
+.file-row-actions { display: flex; gap: 6px; }
+.row-act-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, color 0.15s;
+}
+.row-act-btn:hover { border-color: var(--accent); color: var(--accent); }
+.row-act-btn.del:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ── Script panel ── */
+.script-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-top: 24px;
+  overflow: hidden;
+}
+.script-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+.script-head-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+.script-head-badge {
+  font-size: 11px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-weight: 500;
+}
+.script-chevron { color: var(--text3); font-size: 12px; transition: transform 0.2s; }
+.script-chevron.open { transform: rotate(180deg); }
+.script-body { padding: 14px; }
+.script-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.script-opt {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.script-opt:hover, .script-opt.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+.dest-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.dest-label {
+  font-size: 12px;
+  color: var(--text3);
+  flex-shrink: 0;
+}
+.dest-input {
+  flex: 1;
+  min-width: 180px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  outline: none;
+}
+.dest-input:focus { border-color: var(--accent); }
+.script-code {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text);
+  white-space: pre;
+  overflow-x: auto;
+  line-height: 1.7;
+  min-height: 60px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.script-comment { color: var(--text3); }
+.script-cmd { color: var(--text); }
+.script-url { color: #60a5fa; }
+.copy-btn {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+.copy-btn button {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.copy-btn button:hover { background: var(--accent-hover); }
+.copy-btn button.secondary {
+  background: var(--surface2);
+  color: var(--text2);
+  border: 1px solid var(--border);
+}
+.copy-btn button.secondary:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.copied-tag {
+  font-size: 12px;
+  color: var(--success);
+  align-self: center;
+  display: none;
+}
+.copied-tag.show { display: block; }
+
+/* ── Empty state ── */
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text3);
+}
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-state h3 { font-size: 15px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+.empty-state p { font-size: 13px; max-width: 280px; margin: 0 auto; }
+
+/* ── Modal ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
+.modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+.modal img { width: 100%; border-radius: 6px; }
+.modal-close {
+  margin-top: 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 7px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 100%;
+}
+
+/* ── Supabase config ── */
+.config-bar {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--text2);
+}
+.config-bar strong { color: var(--accent); }
+.config-fields { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.config-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.config-label { font-size: 12px; color: var(--text3); min-width: 80px; }
+.config-input {
+  flex: 1;
+  min-width: 160px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  outline: none;
+}
+.config-input:focus { border-color: var(--accent); }
+.config-save {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 6px;
+  align-self: flex-start;
+}
+
+/* ── Supabase offline mode badge ── */
+.offline-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-size: 11px;
+  color: var(--text3);
+  padding: 2px 8px;
+}
+
+/* ── Upload progress ── */
+.upload-progress {
+  background: var(--surface2);
+  border-radius: 3px;
+  height: 3px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+.upload-bar {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.3s;
+  border-radius: 3px;
+}
+
+/* ── Toast ── */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 999;
+  max-width: 300px;
+}
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 13px;
+  box-shadow: var(--shadow);
+  animation: slideIn 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error { border-left: 3px solid var(--danger); }
+@keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ── Mobile ── */
+@media (max-width: 600px) {
+  .sidebar { display: none; }
+  .sidebar.mobile-open {
+    display: flex;
+    position: fixed;
+    inset: 52px 0 0 0;
+    z-index: 90;
+    width: 100%;
+  }
+  .mobile-folder-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    flex-shrink: 0;
+  }
+  .mobile-folder-chip {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--surface2);
+    color: var(--text2);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .mobile-folder-chip.active {
+    background: var(--accent-bg);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .file-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .content-header { gap: 6px; }
+}
+@media (min-width: 601px) {
+  .mobile-folder-bar { display: none; }
+  .menu-btn { display: none !important; }
+}
+</style>
+
+<div class="app">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <span class="dot"></span>
+      Refs Manager
+    </div>
+    <button class="topbar-btn menu-btn" id="menu-btn" style="display:flex" onclick="toggleSidebar()">☰ Folders</button>
+    <div class="topbar-spacer"></div>
+    <span class="offline-badge" id="storage-badge">💾 Local</span>
+    <button class="topbar-btn primary" onclick="showNewFolderInput()">+ New Folder</button>
+  </div>
+
+  <div class="main-layout">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-head">Folders</div>
+      <div id="folder-list"></div>
+      <div class="new-folder-form" id="new-folder-form" style="display:none">
+        <input id="folder-name-input" placeholder="folder name…" onkeydown="handleFolderKey(event)">
+        <button onclick="createFolder()">Add</button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content" id="content">
+      <!-- Mobile folder chips -->
+      <div class="mobile-folder-bar" id="mobile-folder-bar"></div>
+
+      <!-- Config / Supabase info -->
+      <div class="config-bar" id="config-bar">
+        <strong>⚡ Local mode</strong> — files stay in your browser. To sync across devices, add Supabase credentials.
+        <div class="config-fields">
+          <div class="config-row">
+            <span class="config-label">Project URL</span>
+            <input class="config-input" id="sb-url" placeholder="https://xxx.supabase.co">
+          </div>
+          <div class="config-row">
+            <span class="config-label">Anon key</span>
+            <input class="config-input" id="sb-key" placeholder="eyJhbGci…">
+          </div>
+          <div class="config-row">
+            <span class="config-label">Bucket</span>
+            <input class="config-input" id="sb-bucket" placeholder="refs" value="refs">
+          </div>
+          <button class="config-save" onclick="saveSupabaseConfig()">Connect Supabase</button>
+        </div>
+      </div>
+
+      <div id="main-view"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="closeModal(event)">
+  <div class="modal" id="modal-inner">
+    <h3 id="modal-filename">Preview</h3>
+    <div id="modal-content"></div>
+    <button class="modal-close" onclick="document.getElementById('modal').style.display='none'">Close</button>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toasts"></div>
+
+<script>
+// ── State ──
+let folders = [];
+let files = {};       // { folderName: [{id, name, size, type, url, dataUrl, uploadedAt}] }
+let activeFolder = null;
+let viewMode = 'grid';
+let scriptOpen = true;
+let scriptMode = 'wget';
+let destPath = '';
+let supabase = null;
+let sbConfig = {
+  url: 'https://ectujyzszwmwolbaxfxt.supabase.co',
+  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjdHVqeXpzendtd29sYmF4Znh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4OTk3MjEsImV4cCI6MjEwNzQ3NTcyMX0.l6v_pWAq8cmUcBOtOGvtsBB3nQHvbKAQamdk9G_drGE',
+  bucket: 'minimax'
+};
+
+// ── Persist ──
+function save() {
+  try {
+    localStorage.setItem('refs_folders', JSON.stringify(folders));
+    localStorage.setItem('refs_files_meta', JSON.stringify(
+      Object.fromEntries(Object.entries(files).map(([k, v]) => [k, v.map(f => ({
+        id: f.id, name: f.name, size: f.size, type: f.type,
+        uploadedAt: f.uploadedAt, url: f.url || null
+      }))]))
+    ));
+    localStorage.setItem('refs_sb', JSON.stringify(sbConfig));
+  } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const f = localStorage.getItem('refs_folders');
+    const fm = localStorage.getItem('refs_files_meta');
+    const sb = localStorage.getItem('refs_sb');
+    const blobs = {};
+    try {
+      const b = localStorage.getItem('refs_blobs');
+      if (b) Object.assign(blobs, JSON.parse(b));
+    } catch(e) {}
+    if (f) folders = JSON.parse(f);
+    if (fm) {
+      const meta = JSON.parse(fm);
+      files = {};
+      for (const [k, v] of Object.entries(meta)) {
+        files[k] = v.map(f2 => ({
+          ...f2,
+          dataUrl: blobs[f2.id] || f2.url || null
+        }));
+      }
+    }
+    // sbConfig is hardcoded — ignore any stored override
+  } catch(e) {
+    folders = []; files = {};
+  }
+  if (folders.length === 0) {
+    folders = ['my_dog'];
+    files['my_dog'] = [];
+  }
+  activeFolder = folders[0];
+  destPath = `/ComfyUI/input/refs/${activeFolder}/`;
+}
+
+function saveBlob(id, dataUrl) {
+  try {
+    const blobs = {};
+    try { const b = localStorage.getItem('refs_blobs'); if (b) Object.assign(blobs, JSON.parse(b)); } catch(e) {}
+    blobs[id] = dataUrl;
+    localStorage.setItem('refs_blobs', JSON.stringify(blobs));
+  } catch(e) {}
+}
+
+// ── Supabase ──
+async function saveSupabaseConfig() {
+  const url = document.getElementById('sb-url').value.trim().replace(/\/$/, '');
+  const key = document.getElementById('sb-key').value.trim();
+  const bucket = document.getElementById('sb-bucket').value.trim() || 'refs';
+  if (!url || !key) { toast('Enter Project URL and Anon key', 'error'); return; }
+  sbConfig = { url, key, bucket };
+  save();
+  await initSupabase(true);
+}
+
+async function initSupabase(doTest) {
+  supabase = { url: sbConfig.url, key: sbConfig.key, bucket: sbConfig.bucket };
+  document.getElementById('storage-badge').textContent = '☁️ Supabase';
+  document.getElementById('config-bar').style.display = 'none';
+  if (doTest) {
+    const ok = await sbTest();
+    if (ok) { toast('Connected to Supabase ✓', 'success'); }
+    else { toast('Check your URL/key — bucket may need to be public', 'error'); }
+  }
+}
+
+async function sbTest() {
+  try {
+    const r = await fetch(`${sbConfig.url}/storage/v1/bucket/${sbConfig.bucket}`,
+      { headers: { 'Authorization': `Bearer ${sbConfig.key}`, 'apikey': sbConfig.key } });
+    return r.ok;
+  } catch(e) { return false; }
+}
+
+async function sbUpload(folder, file, dataUrl) {
+  if (!supabase) return null;
+  // Convert dataUrl back to blob
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  const path = `${folder}/${Date.now()}_${file.name}`;
+  const r = await fetch(`${sbConfig.url}/storage/v1/object/${sbConfig.bucket}/${path}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${sbConfig.key}`,
+      'apikey': sbConfig.key,
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-upsert': 'true'
+    },
+    body: blob
+  });
+  if (!r.ok) return null;
+  return `${sbConfig.url}/storage/v1/object/public/${sbConfig.bucket}/${path}`;
+}
+
+// ── Render ──
+function render() {
+  renderFolders();
+  renderMobileChips();
+  renderMain();
+}
+
+function renderFolders() {
+  const el = document.getElementById('folder-list');
+  el.innerHTML = folders.map(f => {
+    const count = (files[f] || []).length;
+    return `<div class="folder-item${f === activeFolder ? ' active' : ''}" onclick="selectFolder('${f}')">
+      <span class="folder-icon">📁</span>
+      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${f}</span>
+      <span class="folder-count">${count}</span>
+      <button class="folder-del" title="Delete folder" onclick="deleteFolder(event,'${f}')">×</button>
+    </div>`;
+  }).join('');
+}
+
+function renderMobileChips() {
+  const el = document.getElementById('mobile-folder-bar');
+  el.innerHTML = folders.map(f =>
+    `<div class="mobile-folder-chip${f === activeFolder ? ' active' : ''}" onclick="selectFolder('${f}')">${f}</div>`
+  ).join('') + `<div class="mobile-folder-chip" onclick="showNewFolderInput()" style="border-style:dashed">+ New</div>`;
+}
+
+function renderMain() {
+  const fFiles = files[activeFolder] || [];
+  const v = document.getElementById('main-view');
+  destPath = `/ComfyUI/input/refs/${activeFolder}/`;
+
+  v.innerHTML = `
+    <div class="content-header">
+      <span class="content-title">${activeFolder}</span>
+      <span class="file-count">${fFiles.length} file${fFiles.length !== 1 ? 's' : ''}</span>
+      <div class="view-toggle">
+        <button class="${viewMode==='grid'?'active':''}" onclick="setView('grid')" title="Grid">⊞</button>
+        <button class="${viewMode==='list'?'active':''}" onclick="setView('list')" title="List">☰</button>
+      </div>
+    </div>
+
+    <div class="drop-zone" id="drop-zone"
+      ondragover="dz(event,true)" ondragleave="dz(event,false)" ondrop="handleDrop(event)">
+      <div class="drop-icon">📤</div>
+      <p>Drag &amp; drop images or videos here</p>
+      <label>Browse files<input type="file" id="file-input" multiple accept="image/*,video/*" onchange="handleFiles(this.files)"></label>
+    </div>
+
+    ${fFiles.length === 0 ? `
+      <div class="empty-state">
+        <div class="empty-icon">🐕</div>
+        <h3>No files yet</h3>
+        <p>Upload reference images or videos to use in ComfyUI or MiniMax H3</p>
+      </div>
+    ` : (viewMode === 'grid' ? renderGrid(fFiles) : renderList(fFiles))}
+
+    ${renderScript(fFiles)}
+  `;
+}
+
+function renderGrid(fFiles) {
+  return `<div class="file-grid">
+    ${fFiles.map(f => `
+      <div class="file-card" onclick="previewFile('${f.id}')">
+        <div class="file-thumb">${thumbHtml(f)}</div>
+        <div class="file-info">
+          <div class="file-name" title="${f.name}">${f.name}</div>
+          <div class="file-meta">${formatSize(f.size)}</div>
+        </div>
+        <div class="file-actions">
+          <button class="file-act-btn" title="Download" onclick="downloadFile(event,'${f.id}')">⬇</button>
+          <button class="file-act-btn del" title="Delete" onclick="deleteFile(event,'${f.id}')">×</button>
+        </div>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function renderList(fFiles) {
+  return `<div class="file-list">
+    ${fFiles.map(f => `
+      <div class="file-row" onclick="previewFile('${f.id}')">
+        <div class="file-row-thumb">${thumbHtml(f)}</div>
+        <div class="file-row-info">
+          <div class="file-row-name">${f.name}</div>
+          <div class="file-row-meta">${formatSize(f.size)} · ${f.uploadedAt}</div>
+        </div>
+        <div class="file-row-actions">
+          <button class="row-act-btn" onclick="downloadFile(event,'${f.id}')">⬇ Download</button>
+          <button class="row-act-btn del" onclick="deleteFile(event,'${f.id}')">Delete</button>
+        </div>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function thumbHtml(f) {
+  if (!f.dataUrl && !f.url) {
+    const icon = f.type && f.type.startsWith('video/') ? '🎬' : '🖼';
+    return `<span class="file-icon">${icon}</span>`;
+  }
+  const src = f.dataUrl || f.url;
+  if (f.type && f.type.startsWith('video/')) {
+    return `<video src="${src}" muted preload="metadata"></video>`;
+  }
+  return `<img src="${src}" alt="${f.name}" loading="lazy">`;
+}
+
+function renderScript(fFiles) {
+  const urls = fFiles.map(f => f.url || f.dataUrl).filter(Boolean);
+  const hasUrls = urls.length > 0;
+  const fileUrls = fFiles.map(f => ({
+    name: f.name,
+    url: f.url || (f.dataUrl && f.dataUrl.startsWith('data:') ? null : f.dataUrl)
+  }));
+
+  let scriptContent = '';
+  if (!hasUrls && fFiles.length > 0) {
+    scriptContent = `<span class="script-comment"># Connect Supabase above to get public URLs for wget/curl scripts</span>`;
+  } else if (fFiles.length === 0) {
+    scriptContent = `<span class="script-comment"># Upload files first to generate the download script</span>`;
+  } else {
+    const goodFiles = fFiles.filter(f => f.url);
+    if (goodFiles.length === 0) {
+      scriptContent = `<span class="script-comment"># No Supabase URLs yet — connect Supabase to sync files</span>`;
+    } else if (scriptMode === 'wget') {
+      const lines = [`<span class="script-comment"># Download all files in "${activeFolder}" to RunPod</span>`,
+        `<span class="script-cmd">mkdir -p "${destPath}"</span>`,
+        ...goodFiles.map(f =>
+          `<span class="script-cmd">wget -q -P "${destPath}" \\</span>\n  <span class="script-url">"${f.url}"</span>`)
+      ];
+      scriptContent = lines.join('\n');
+    } else {
+      const lines = [`<span class="script-comment"># curl version — useful if wget isn't available</span>`,
+        `<span class="script-cmd">mkdir -p "${destPath}"</span>`,
+        ...goodFiles.map(f =>
+          `<span class="script-cmd">curl -sO --output-dir "${destPath}" \\</span>\n  <span class="script-url">"${f.url}"</span>`)
+      ];
+      scriptContent = lines.join('\n');
+    }
+  }
+
+  const rawScript = getRawScript(fFiles);
+
+  return `<div class="script-panel">
+    <div class="script-head" onclick="toggleScript()">
+      <span style="font-size:16px">📋</span>
+      <span class="script-head-title">Jupyter Download Script</span>
+      <span class="script-head-badge">Paste in pod terminal</span>
+      <span class="script-chevron${scriptOpen ? ' open' : ''}" id="schev">▼</span>
+    </div>
+    <div id="script-body" style="${scriptOpen ? '' : 'display:none'}">
+      <div class="script-body">
+        <div class="script-options">
+          <button class="script-opt${scriptMode==='wget'?' active':''}" onclick="setScriptMode('wget')">wget</button>
+          <button class="script-opt${scriptMode==='curl'?' active':''}" onclick="setScriptMode('curl')">curl</button>
+        </div>
+        <div class="dest-input-row">
+          <span class="dest-label">Dest path</span>
+          <input class="dest-input" id="dest-path" value="${destPath}" oninput="updateDest(this.value)">
+        </div>
+        <pre class="script-code" id="script-code">${scriptContent}</pre>
+        <div class="copy-btn">
+          <button onclick="copyScript('${activeFolder}')">Copy Script</button>
+          <span class="copied-tag" id="copied-tag">✓ Copied!</span>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function getRawScript(fFiles) {
+  const goodFiles = fFiles.filter(f => f.url);
+  if (!goodFiles.length) return '# No files with public URLs yet';
+  const lines = [`mkdir -p "${destPath}"`];
+  if (scriptMode === 'wget') {
+    goodFiles.forEach(f => lines.push(`wget -q -P "${destPath}" "${f.url}"`));
+  } else {
+    goodFiles.forEach(f => lines.push(`curl -sO --output-dir "${destPath}" "${f.url}"`));
+  }
+  return lines.join('\n');
+}
+
+// ── Actions ──
+function selectFolder(name) {
+  activeFolder = name;
+  destPath = `/ComfyUI/input/refs/${name}/`;
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  render();
+}
+
+function showNewFolderInput() {
+  const form = document.getElementById('new-folder-form');
+  form.style.display = 'flex';
+  document.getElementById('folder-name-input').focus();
+}
+
+function handleFolderKey(e) {
+  if (e.key === 'Enter') createFolder();
+  if (e.key === 'Escape') document.getElementById('new-folder-form').style.display = 'none';
+}
+
+function createFolder() {
+  const input = document.getElementById('folder-name-input');
+  const name = input.value.trim().replace(/[^a-zA-Z0-9_\-]/g, '_').toLowerCase();
+  if (!name) return;
+  if (folders.includes(name)) { toast('Folder already exists', 'error'); return; }
+  folders.push(name);
+  files[name] = [];
+  input.value = '';
+  document.getElementById('new-folder-form').style.display = 'none';
+  activeFolder = name;
+  save();
+  render();
+  toast(`Folder "${name}" created`, 'success');
+}
+
+function deleteFolder(e, name) {
+  e.stopPropagation();
+  if (!confirm(`Delete folder "${name}" and all its files?`)) return;
+  folders = folders.filter(f => f !== name);
+  delete files[name];
+  if (activeFolder === name) activeFolder = folders[0] || null;
+  save();
+  render();
+  toast(`Folder deleted`, 'success');
+}
+
+function dz(e, over) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.toggle('drag-over', over);
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+}
+
+async function handleFiles(fileList) {
+  if (!activeFolder) { toast('Create a folder first', 'error'); return; }
+  const arr = Array.from(fileList).filter(f => f.type.startsWith('image/') || f.type.startsWith('video/'));
+  if (!arr.length) { toast('Only images and videos are supported', 'error'); return; }
+
+  for (const file of arr) {
+    const id = 'f_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    const dataUrl = await readFile(file);
+    const entry = {
+      id,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      uploadedAt: new Date().toLocaleDateString(),
+      dataUrl,
+      url: null
+    };
+    if (!files[activeFolder]) files[activeFolder] = [];
+    files[activeFolder].push(entry);
+    saveBlob(id, dataUrl);
+
+    // Try Supabase upload
+    if (supabase) {
+      try {
+        const url = await sbUpload(activeFolder, file, dataUrl);
+        if (url) { entry.url = url; entry.dataUrl = url; }
+      } catch(e) {}
+    }
+    save();
+  }
+  render();
+  toast(`${arr.length} file${arr.length > 1 ? 's' : ''} uploaded`, 'success');
+}
+
+function readFile(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function deleteFile(e, id) {
+  e.stopPropagation();
+  files[activeFolder] = (files[activeFolder] || []).filter(f => f.id !== id);
+  save();
+  render();
+}
+
+function downloadFile(e, id) {
+  e.stopPropagation();
+  const f = (files[activeFolder] || []).find(x => x.id === id);
+  if (!f) return;
+  const src = f.dataUrl || f.url;
+  if (!src) { toast('No file data available', 'error'); return; }
+  // Open in new tab since <a download> is blocked in artifact
+  if (src.startsWith('http')) {
+    window.open(src, '_blank');
+  } else {
+    // data URL — show modal with the full data and instruct
+    toast('Right-click the preview → Save image', 'success');
+    previewFile(id);
+  }
+}
+
+function previewFile(id) {
+  const f = (files[activeFolder] || []).find(x => x.id === id);
+  if (!f) return;
+  const src = f.dataUrl || f.url;
+  const modal = document.getElementById('modal');
+  document.getElementById('modal-filename').textContent = f.name;
+  const mc = document.getElementById('modal-content');
+  if (f.type && f.type.startsWith('video/')) {
+    mc.innerHTML = src ? `<video src="${src}" controls style="width:100%;border-radius:6px;max-height:320px"></video>` : '<p style="color:var(--text3)">No preview</p>';
+  } else {
+    mc.innerHTML = src ? `<img src="${src}" alt="${f.name}" style="width:100%;border-radius:6px">` : '<p style="color:var(--text3)">No preview</p>';
+  }
+  modal.style.display = 'flex';
+}
+
+function closeModal(e) {
+  if (e.target.id === 'modal') document.getElementById('modal').style.display = 'none';
+}
+
+function setView(v) { viewMode = v; renderMain(); }
+function toggleScript() {
+  scriptOpen = !scriptOpen;
+  document.getElementById('script-body').style.display = scriptOpen ? '' : 'none';
+  const ch = document.getElementById('schev');
+  if (ch) ch.classList.toggle('open', scriptOpen);
+}
+function setScriptMode(m) { scriptMode = m; renderMain(); }
+function updateDest(v) { destPath = v; renderMain(); }
+
+function copyScript(folder) {
+  const fFiles = files[folder] || [];
+  const raw = getRawScript(fFiles);
+  navigator.clipboard.writeText(raw).then(() => {
+    const t = document.getElementById('copied-tag');
+    if (t) { t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000); }
+  }).catch(() => {
+    toast('Select and copy the script manually', 'error');
+  });
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('mobile-open');
+}
+
+function formatSize(bytes) {
+  if (!bytes) return '—';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+
+function toast(msg, type='success') {
+  const c = document.getElementById('toasts');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// ── Init ──
+loadState();
+// Supabase is hardcoded — always connected
+document.getElementById('config-bar').style.display = 'none';
+document.getElementById('storage-badge').textContent = '☁️ Supabase';
+supabase = { url: sbConfig.url, key: sbConfig.key, bucket: sbConfig.bucket };
+render();
+</script>
