@@ -829,8 +829,10 @@ let sbConfig = {
 };
 
 // ── Load from Supabase on startup ──
-async function loadFromSupabase() {
-  // List ALL objects in the bucket (up to 1000)
+// Supabase Storage list API with no prefix returns top-level items only.
+// Folders appear as items with metadata: null (they are "directory" entries).
+// We must list each folder individually to get its files.
+async function sbList(prefix) {
   const r = await fetch(
     `${sbConfig.url}/storage/v1/object/list/${sbConfig.bucket}`,
     {
@@ -840,41 +842,50 @@ async function loadFromSupabase() {
         'apikey': sbConfig.key,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ prefix: '', limit: 1000, offset: 0 })
+      body: JSON.stringify({ prefix: prefix, limit: 1000, offset: 0, sortBy: { column: 'name', order: 'asc' } })
     }
   );
-  if (!r.ok) { toast('Could not load files from Supabase', 'error'); return; }
-  const items = await r.json();
+  if (!r.ok) return [];
+  return await r.json();
+}
 
-  // items with name like "folder/filename" — extract folders and files
+async function loadFromSupabase() {
   folders = [];
   files = {};
 
-  for (const item of items) {
-    if (!item.name) continue;
-    const parts = item.name.split('/');
-    if (parts.length < 2) continue; // skip root-level files
-    const folder = parts[0];
-    const filename = parts.slice(1).join('/');
-    if (!filename) continue; // skip folder placeholder entries
+  // Step 1: list top-level — folders appear as items with metadata === null
+  const topLevel = await sbList('');
+  if (!Array.isArray(topLevel)) { toast('Could not load from Supabase', 'error'); return; }
 
-    if (!folders.includes(folder)) {
-      folders.push(folder);
-      files[folder] = [];
+  const folderNames = topLevel
+    .filter(item => item.name && item.metadata === null)
+    .map(item => item.name);
+
+  // Step 2: for each folder, list its contents
+  for (const folder of folderNames) {
+    const items = await sbList(folder + '/');
+    folders.push(folder);
+    files[folder] = [];
+    for (const item of items) {
+      if (!item.name) continue;
+      // skip .keep placeholder
+      if (item.name === '.keep') continue;
+      // skip sub-folder entries (metadata === null)
+      if (item.metadata === null) continue;
+      const fullPath = `${folder}/${item.name}`;
+      const url = `${sbConfig.url}/storage/v1/object/public/${sbConfig.bucket}/${fullPath}`;
+      files[folder].push({
+        id: item.id || fullPath,
+        name: item.name,
+        size: item.metadata?.size || 0,
+        type: item.metadata?.mimetype || '',
+        uploadedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : '',
+        url,
+        dataUrl: url
+      });
     }
-    const url = `${sbConfig.url}/storage/v1/object/public/${sbConfig.bucket}/${item.name}`;
-    files[folder].push({
-      id: item.id || item.name,
-      name: filename,
-      size: item.metadata?.size || 0,
-      type: item.metadata?.mimetype || '',
-      uploadedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : '',
-      url,
-      dataUrl: url
-    });
   }
 
-  if (folders.length === 0) folders = [];
   activeFolder = folders[0] || null;
   destPath = activeFolder ? `/ComfyUI/input/refmod_images/${activeFolder}/` : '/ComfyUI/input/refmod_images/';
 }
@@ -957,8 +968,12 @@ function renderMobileChips() {
 }
 
 function renderMain() {
-  const fFiles = files[activeFolder] || [];
   const v = document.getElementById('main-view');
+  if (!activeFolder) {
+    v.innerHTML = `<div class="empty-state"><div class="empty-icon">📁</div><h3>No folders yet</h3><p>Click <strong>+ New Folder</strong> to create your first reference folder.</p></div>`;
+    return;
+  }
+  const fFiles = files[activeFolder] || [];
   destPath = `/ComfyUI/input/refmod_images/${activeFolder}/`;
 
   v.innerHTML = `
